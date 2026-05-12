@@ -21,7 +21,6 @@ use rspotify::{
   },
   oauth2::{SpotifyClientCredentials, SpotifyOAuth, TokenInfo},
   senum::{AdditionalType, Country, RepeatState, SearchType},
-  util::get_token,
 };
 use serde_json::{map::Map, Value};
 use std::{
@@ -327,6 +326,12 @@ impl<'a> Network<'a> {
 
   async fn get_devices(&mut self) {
     if let Ok(result) = self.spotify.device().await {
+      if self.client_config.device_id.is_none() {
+        if let Some(device) = result.devices.first() {
+          let _ = self.client_config.set_device_id(device.id.clone());
+        }
+      }
+
       let mut app = self.app.lock().await;
       app.push_navigation_stack(RouteId::SelectedDevice, ActiveBlock::SelectDevice);
       if !result.devices.is_empty() {
@@ -348,6 +353,10 @@ impl<'a> Network<'a> {
 
     match context {
       Ok(Some(c)) => {
+        if self.client_config.device_id.is_none() {
+          let _ = self.client_config.set_device_id(c.device.id.clone());
+        }
+
         let mut app = self.app.lock().await;
         app.current_playback_context = Some(c.clone());
         app.instant_since_last_current_playback_poll = Instant::now();
@@ -1466,15 +1475,22 @@ impl<'a> Network<'a> {
   }
 
   async fn refresh_authentication(&mut self) {
-    if let Some(new_token_info) = get_token(&mut self.oauth).await {
-      let (new_spotify, new_token_expiry) = get_spotify(new_token_info);
-      self.spotify = new_spotify;
-      let mut app = self.app.lock().await;
-      app.spotify_token_expiry = new_token_expiry;
-    } else {
-      println!("\nFailed to refresh authentication token");
-      // TODO panic!
+    if let Some(token_info) = self.oauth.get_cached_token().await {
+      if let Some(refresh_token) = token_info.refresh_token {
+        if let Some(new_token_info) = crate::auth::refresh_token(&refresh_token) {
+          let (new_spotify, new_token_expiry) = get_spotify(new_token_info.clone());
+          self.spotify = new_spotify;
+          let mut app = self.app.lock().await;
+          app.spotify_token_expiry = new_token_expiry;
+          if let Ok(token_str) = serde_json::to_string(&new_token_info) {
+            self.oauth.save_token_info(&token_str);
+          }
+          return;
+        }
+      }
     }
+
+    println!("\nFailed to refresh authentication token");
   }
 
   async fn add_item_to_queue(&mut self, item: String) {

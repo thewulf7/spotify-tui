@@ -1,9 +1,8 @@
-use super::banner::BANNER;
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::{
   fs,
-  io::{stdin, Write},
+  io::Write,
   path::{Path, PathBuf},
 };
 
@@ -101,45 +100,11 @@ impl ClientConfig {
 
       Ok(())
     } else {
-      println!("{}", BANNER);
-
-      println!(
-        "Config will be saved to {}",
-        paths.config_file_path.display()
-      );
-
-      println!("\nHow to get setup:\n");
-
-      let instructions = [
-        "Go to the Spotify dashboard - https://developer.spotify.com/dashboard/applications",
-        "Click `Create a Client ID` and create an app",
-        "Now click `Edit Settings`",
-        &format!(
-          "Add `http://localhost:{}/callback` to the Redirect URIs",
-          DEFAULT_PORT
-        ),
-        "You are now ready to authenticate with Spotify!",
-      ];
-
-      let mut number = 1;
-      for item in instructions.iter() {
-        println!("  {}. {}", number, item);
-        number += 1;
-      }
-
-      let client_id = ClientConfig::get_client_key_from_input("Client ID")?;
-      let client_secret = ClientConfig::get_client_key_from_input("Client Secret")?;
-
-      let mut port = String::new();
-      println!("\nEnter port of redirect uri (default {}): ", DEFAULT_PORT);
-      stdin().read_line(&mut port)?;
-      let port = port.trim().parse::<u16>().unwrap_or(DEFAULT_PORT);
-
       let config_yml = ClientConfig {
-        client_id,
-        client_secret,
+        client_id: "".to_string(),
+        client_secret: "".to_string(),
         device_id: None,
-        port: Some(port),
+        port: Some(DEFAULT_PORT),
       };
 
       let content_yml = serde_yaml::to_string(&config_yml)?;
@@ -147,53 +112,8 @@ impl ClientConfig {
       let mut new_config = fs::File::create(&paths.config_file_path)?;
       write!(new_config, "{}", content_yml)?;
 
-      self.client_id = config_yml.client_id;
-      self.client_secret = config_yml.client_secret;
-      self.device_id = config_yml.device_id;
-      self.port = config_yml.port;
+      self.port = Some(DEFAULT_PORT);
 
-      Ok(())
-    }
-  }
-
-  fn get_client_key_from_input(type_label: &'static str) -> Result<String> {
-    let mut client_key = String::new();
-    const MAX_RETRIES: u8 = 5;
-    let mut num_retries = 0;
-    loop {
-      println!("\nEnter your {}: ", type_label);
-      stdin().read_line(&mut client_key)?;
-      client_key = client_key.trim().to_string();
-      match ClientConfig::validate_client_key(&client_key) {
-        Ok(_) => return Ok(client_key),
-        Err(error_string) => {
-          println!("{}", error_string);
-          client_key.clear();
-          num_retries += 1;
-          if num_retries == MAX_RETRIES {
-            return Err(Error::from(std::io::Error::new(
-              std::io::ErrorKind::Other,
-              format!("Maximum retries ({}) exceeded.", MAX_RETRIES),
-            )));
-          }
-        }
-      };
-    }
-  }
-
-  fn validate_client_key(key: &str) -> Result<()> {
-    const EXPECTED_LEN: usize = 32;
-    if key.len() != EXPECTED_LEN {
-      Err(Error::from(std::io::Error::new(
-        std::io::ErrorKind::InvalidInput,
-        format!("invalid length: {} (must be {})", key.len(), EXPECTED_LEN,),
-      )))
-    } else if !key.chars().all(|c| c.is_digit(16)) {
-      Err(Error::from(std::io::Error::new(
-        std::io::ErrorKind::InvalidInput,
-        "invalid character found (must be hex digits)",
-      )))
-    } else {
       Ok(())
     }
   }

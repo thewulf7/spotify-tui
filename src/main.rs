@@ -1,18 +1,20 @@
 mod app;
+mod auth;
 mod banner;
 mod cli;
 mod config;
 mod event;
 mod handlers;
 mod network;
-mod redirect_uri;
 mod ui;
 mod user_config;
 
 use crate::app::RouteId;
+use crate::auth::SCOPES;
 use crate::event::Key;
 use anyhow::{anyhow, Result};
 use app::{ActiveBlock, App};
+use auth::NCSPOT_CLIENT_ID;
 use backtrace::Backtrace;
 use banner::BANNER;
 use clap::{App as ClapApp, Arg, Shell};
@@ -28,15 +30,13 @@ use crossterm::{
   ExecutableCommand,
 };
 use network::{get_spotify, IoEvent, Network};
-use redirect_uri::redirect_uri_web_server;
 use rspotify::{
-  oauth2::{SpotifyOAuth, TokenInfo},
-  util::{process_token, request_token},
+  oauth2::SpotifyOAuth,
 };
 use std::{
   cmp::{max, min},
   io::{self, stdout},
-  panic::{self, PanicInfo},
+  panic::{self, PanicHookInfo},
   path::PathBuf,
   sync::Arc,
   time::SystemTime,
@@ -48,43 +48,6 @@ use tui::{
 };
 use user_config::{UserConfig, UserConfigPaths};
 
-const SCOPES: [&str; 14] = [
-  "playlist-read-collaborative",
-  "playlist-read-private",
-  "playlist-modify-private",
-  "playlist-modify-public",
-  "user-follow-read",
-  "user-follow-modify",
-  "user-library-modify",
-  "user-library-read",
-  "user-modify-playback-state",
-  "user-read-currently-playing",
-  "user-read-playback-state",
-  "user-read-playback-position",
-  "user-read-private",
-  "user-read-recently-played",
-];
-
-/// get token automatically with local webserver
-pub async fn get_token_auto(spotify_oauth: &mut SpotifyOAuth, port: u16) -> Option<TokenInfo> {
-  match spotify_oauth.get_cached_token().await {
-    Some(token_info) => Some(token_info),
-    None => match redirect_uri_web_server(spotify_oauth, port) {
-      Ok(mut url) => process_token(spotify_oauth, &mut url).await,
-      Err(()) => {
-        println!("Starting webserver failed. Continuing with manual authentication");
-        request_token(spotify_oauth);
-        println!("Enter the URL you were redirected to: ");
-        let mut input = String::new();
-        match io::stdin().read_line(&mut input) {
-          Ok(_) => process_token(spotify_oauth, &mut input).await,
-          Err(_) => None,
-        }
-      }
-    },
-  }
-}
-
 fn close_application() -> Result<()> {
   disable_raw_mode()?;
   let mut stdout = io::stdout();
@@ -92,7 +55,7 @@ fn close_application() -> Result<()> {
   Ok(())
 }
 
-fn panic_hook(info: &PanicInfo<'_>) {
+fn panic_hook(info: &PanicHookInfo<'_>) {
   if cfg!(debug_assertions) {
     let location = info.location().unwrap();
 
@@ -209,16 +172,36 @@ of the app. Beware that this comes at a CPU cost!",
   let config_paths = client_config.get_or_build_paths()?;
 
   // Start authorization with spotify
+  let client_id = if client_config.client_id.is_empty() {
+    NCSPOT_CLIENT_ID.to_string()
+  } else {
+    client_config.client_id.clone()
+  };
+
   let mut oauth = SpotifyOAuth::default()
-    .client_id(&client_config.client_id)
+    .client_id(&client_id)
     .client_secret(&client_config.client_secret)
     .redirect_uri(&client_config.get_redirect_uri())
-    .cache_path(config_paths.token_cache_path)
+    .cache_path(config_paths.token_cache_path.clone())
     .scope(&SCOPES.join(" "))
     .build();
 
-  let config_port = client_config.get_port();
-  match get_token_auto(&mut oauth, config_port).await {
+  let token_info = match oauth.get_cached_token().await {
+    Some(token) => Some(token),
+    None => {
+      let token = auth::get_new_token();
+      if let Some(ref t) = token {
+        if let Ok(token_str) = serde_json::to_string(t) {
+          oauth.save_token_info(&token_str);
+        }
+      }
+      token
+    }
+  };
+
+  let initial_no_device = client_config.device_id.is_none();
+
+  match token_info {
     Some(token_info) => {
       let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();
 
@@ -248,7 +231,7 @@ of the app. Beware that this comes at a CPU cost!",
           start_tokio(sync_io_rx, &mut network);
         });
         // The UI must run in the "main" thread
-        start_ui(user_config, &cloned_app).await?;
+        start_ui(user_config, &cloned_app, initial_no_device).await?;
       }
     }
     None => println!("\nSpotify auth failed"),
@@ -264,7 +247,11 @@ async fn start_tokio<'a>(io_rx: std::sync::mpsc::Receiver<IoEvent>, network: &mu
   }
 }
 
-async fn start_ui(user_config: UserConfig, app: &Arc<Mutex<App>>) -> Result<()> {
+async fn start_ui(
+  user_config: UserConfig,
+  app: &Arc<Mutex<App>>,
+  initial_no_device: bool,
+) -> Result<()> {
   // Terminal initialization
   let mut stdout = stdout();
   execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -403,6 +390,11 @@ async fn start_ui(user_config: UserConfig, app: &Arc<Mutex<App>>) -> Result<()> 
       app.dispatch(IoEvent::GetPlaylists);
       app.dispatch(IoEvent::GetUser);
       app.dispatch(IoEvent::GetCurrentPlayback);
+
+      if initial_no_device {
+        app.dispatch(IoEvent::GetDevices);
+      }
+
       app.help_docs_size = ui::help::get_help_docs(&app.user_config.keys).len() as u32;
 
       is_first_render = false;
