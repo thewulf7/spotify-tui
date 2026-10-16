@@ -48,6 +48,7 @@ pub struct Restrictions {
 pub struct FullAlbum {
     pub artists: Vec<SimplifiedArtist>,
     pub album_type: AlbumType,
+    #[serde(default)]
     pub available_markets: Vec<String>,
     pub copyrights: Vec<HashMap<String, String>>,
     pub external_ids: HashMap<String, String>,
@@ -58,6 +59,7 @@ pub struct FullAlbum {
     #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub name: String,
+    #[serde(default)]
     pub popularity: u32,
     pub release_date: String,
     pub release_date_precision: String,

@@ -126,7 +126,11 @@ pub fn start(config: StreamingConfig) -> Result<StreamingHandle> {
 
   let access_token = obtain_streaming_token(&config.cache_dir, &redirect_uri)?;
 
-  let rt = tokio1::runtime::Builder::new_current_thread()
+  // Use a multi-thread runtime so the Spirc task keeps running
+  // after block_on returns. A current_thread runtime drops spawned
+  // tasks as soon as block_on() completes.
+  let rt = tokio1::runtime::Builder::new_multi_thread()
+    .worker_threads(2)
     .enable_all()
     .build()
     .context("build librespot tokio runtime")?;
@@ -140,7 +144,9 @@ async fn connect_device(config: &StreamingConfig, access_token: &str) -> Result<
   let cache =
     Cache::new(Some(config.cache_dir.clone()), None, None, None).context("open librespot cache")?;
 
-  let creds = Credentials::with_access_token(access_token);
+  let creds = cache
+    .credentials()
+    .unwrap_or_else(|| Credentials::with_access_token(access_token));
 
   let session_config = SessionConfig::default();
   // NOTE: do NOT call session.connect() — Spirc::new() connects the session internally.
