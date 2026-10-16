@@ -15,11 +15,13 @@ pub struct SimplifiedPlaylist {
     pub external_urls: HashMap<String, String>,
     pub href: String,
     pub id: String,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub name: String,
     pub owner: PublicUser,
     pub public: Option<bool>,
     pub snapshot_id: String,
+    #[serde(alias = "items")]
     pub tracks: HashMap<String, Value>,
     #[serde(rename = "type")]
     pub _type: Type,
@@ -34,6 +36,7 @@ pub struct FullPlaylist {
     pub followers: Option<HashMap<String, Value>>,
     pub href: String,
     pub id: String,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub name: String,
     pub owner: PublicUser,

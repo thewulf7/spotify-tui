@@ -13,6 +13,7 @@ pub struct SimplifiedShow {
     pub external_urls: HashMap<String, String>,
     pub href: String,
     pub id: String,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub is_externally_hosted: Option<bool>,
     pub languages: Vec<String>,
@@ -46,6 +47,7 @@ pub struct FullShow {
     pub external_urls: HashMap<String, String>,
     pub href: String,
     pub id: String,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub is_externally_hosted: Option<bool>,
     pub languages: Vec<String>,
@@ -67,6 +69,7 @@ pub struct SimplifiedEpisode {
     pub external_urls: HashMap<String, String>,
     pub href: String,
     pub id: String,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub is_externally_hosted: bool,
     pub is_playable: bool,
@@ -92,6 +95,7 @@ pub struct FullEpisode {
     pub external_urls: HashMap<String, String>,
     pub href: String,
     pub id: String,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub is_externally_hosted: bool,
     pub is_playable: bool,

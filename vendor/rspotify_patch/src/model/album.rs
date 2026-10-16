@@ -22,6 +22,7 @@ pub struct SimplifiedAlbum {
     pub external_urls: HashMap<String, String>,
     pub href: Option<String>,
     pub id: Option<String>,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -54,6 +55,7 @@ pub struct FullAlbum {
     pub genres: Vec<String>,
     pub href: String,
     pub id: String,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub name: String,
     pub popularity: u32,

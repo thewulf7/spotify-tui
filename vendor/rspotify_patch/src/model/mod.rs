@@ -17,6 +17,19 @@ pub mod show;
 pub mod track;
 pub mod user;
 
+/// Spotify sometimes returns `null` instead of `[]` for list fields (e.g.
+/// playlist/album/artist `images` with no cover art). Serde's `default`
+/// alone only covers a *missing* field, not an explicit `null`, so this
+/// treats both the same.
+pub(crate) fn null_to_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de> + Default,
+{
+    let opt: Option<T> = serde::Deserialize::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PlayingItem {

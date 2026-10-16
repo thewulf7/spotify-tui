@@ -27,6 +27,7 @@ pub struct FullArtist {
     pub genres: Vec<String>,
     pub href: String,
     pub id: String,
+    #[serde(default, deserialize_with = "crate::model::null_to_default")]
     pub images: Vec<Image>,
     pub name: String,
     pub popularity: u32,
