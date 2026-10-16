@@ -14,6 +14,14 @@ Fix `spotify-tui` authentication by adopting the PKCE OAuth flow used by `ncspot
 ### 1. Dependency Update (Done)
 - Added `librespot-oauth = "0.8.0"` and `chrono = "0.4"` to `Cargo.toml`.
 
+### 0. rspotify patch (Done)
+- rspotify 0.10.0 requests chrono's `rustc-serialize` feature, which is dead on
+  modern Rust/chrono (no derive macro). Vendored rspotify 0.10.0 into
+  `vendor/rspotify_patch`, dropped that feature, and made `OAuth::save_token_info`
+  `pub` (it's called directly from `main.rs`/`network.rs`). `[patch.crates-io]`
+  in `Cargo.toml` points at the vendored copy so the build is reproducible from
+  a fresh clone.
+
 ### 2. Implement Token Mapping & Acquisition
 - Create a helper to convert `librespot_oauth::OAuthToken` to `rspotify::oauth2::TokenInfo`.
 - Implement a PKCE acquisition function using `OAuthClientBuilder`.

@@ -32,7 +32,7 @@ librespot-oauth = "0.8.0"
 chrono = "0.4"
 
 [patch.crates-io]
-rspotify = { path = "../rspotify_patch" }
+rspotify = { path = "vendor/rspotify_patch" }
 
 [[bin]]
 bench = false
