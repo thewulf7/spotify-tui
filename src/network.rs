@@ -363,10 +363,8 @@ impl<'a> Network<'a> {
 
         if let Some(item) = c.item {
           match item {
-            PlayingItem::Track(track) => {
-              if let Some(track_id) = track.id {
-                app.dispatch(IoEvent::CurrentUserSavedTracksContains(vec![track_id]));
-              };
+            PlayingItem::Track(_track) => {
+              // ponytail: SavedTracksContains always 403s without Extended Quota Mode; skip it
             }
             PlayingItem::Episode(_episode) => { /*should map this to following the podcast show*/ }
           }
@@ -454,15 +452,8 @@ impl<'a> Network<'a> {
 
   async fn set_tracks_to_table(&mut self, tracks: Vec<FullTrack>) {
     let mut app = self.app.lock().await;
-    app.track_table.tracks = tracks.clone();
-
-    // Send this event round (don't block here)
-    app.dispatch(IoEvent::CurrentUserSavedTracksContains(
-      tracks
-        .into_iter()
-        .filter_map(|item| item.id)
-        .collect::<Vec<String>>(),
-    ));
+    app.track_table.tracks = tracks;
+    // ponytail: SavedTracksContains always 403s without Extended Quota Mode; skip it
   }
 
   async fn set_artists_to_table(&mut self, artists: Vec<FullArtist>) {
@@ -963,12 +954,6 @@ impl<'a> Network<'a> {
         .await
       {
         Ok(tracks) => {
-          let track_ids = tracks
-            .items
-            .iter()
-            .filter_map(|item| item.id.clone())
-            .collect::<Vec<String>>();
-
           let mut app = self.app.lock().await;
           app.selected_album_simplified = Some(SelectedAlbum {
             album: *album,
@@ -978,7 +963,7 @@ impl<'a> Network<'a> {
 
           app.album_table_context = AlbumTableContext::Simplified;
           app.push_navigation_stack(RouteId::AlbumTracks, ActiveBlock::AlbumTracks);
-          app.dispatch(IoEvent::CurrentUserSavedTracksContains(track_ids));
+          // ponytail: SavedTracksContains always 403s without Extended Quota Mode; skip it
         }
         Err(e) => {
           self.handle_error(anyhow!(e)).await;
