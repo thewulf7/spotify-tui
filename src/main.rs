@@ -30,9 +30,7 @@ use crossterm::{
   ExecutableCommand,
 };
 use network::{get_spotify, IoEvent, Network};
-use rspotify::{
-  oauth2::SpotifyOAuth,
-};
+use rspotify::oauth2::SpotifyOAuth;
 use std::{
   cmp::{max, min},
   io::{self, stdout},

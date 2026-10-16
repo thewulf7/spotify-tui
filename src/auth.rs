@@ -1,7 +1,7 @@
 use librespot_oauth::{OAuthClientBuilder, OAuthToken};
 use rspotify::oauth2::TokenInfo;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use std::net::TcpListener;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 pub const NCSPOT_CLIENT_ID: &str = "d420a117a32841c2b3474932e49fb54b";
 
@@ -68,7 +68,11 @@ pub fn get_new_token(client_id: &str, redirect_uri: &str) -> Option<TokenInfo> {
   }
 }
 
-pub fn refresh_token(client_id: &str, redirect_uri: &str, refresh_token: &str) -> Option<TokenInfo> {
+pub fn refresh_token(
+  client_id: &str,
+  redirect_uri: &str,
+  refresh_token: &str,
+) -> Option<TokenInfo> {
   let builder = OAuthClientBuilder::new(client_id, redirect_uri, SCOPES.to_vec());
 
   match builder.build() {

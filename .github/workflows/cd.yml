@@ -12,7 +12,6 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        rust: [stable]
         include:
           - os: macos-latest
             artifact_prefix: macos
@@ -28,27 +27,22 @@ jobs:
             binary_postfix: ".exe"
 
     steps:
+      - name: Checking out sources
+        uses: actions/checkout@v4
+
       - name: Installing Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - name: Installing needed macOS dependencies
-        if: matrix.os == 'macos-latest'
-        run: brew install openssl@1.1
+          targets: ${{ matrix.target }}
+
       - name: Installing needed Ubuntu dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y -qq pkg-config libssl-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-      - name: Checking out sources
-        uses: actions/checkout@v1
+
       - name: Running cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          toolchain: ${{ matrix.rust }}
-          args: --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Packaging final binary
         shell: bash
@@ -66,28 +60,12 @@ jobs:
           else
             shasum -a 256 $RELEASE_NAME.tar.gz > $RELEASE_NAME.sha256
           fi
+
       - name: Releasing assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             target/${{ matrix.target }}/release/spotify-tui-${{ matrix.artifact_prefix }}.tar.gz
             target/${{ matrix.target }}/release/spotify-tui-${{ matrix.artifact_prefix }}.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-cargo:
-    name: Publishing to Cargo
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y -qq pkg-config libssl-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-      - uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --token ${{ secrets.CARGO_API_KEY }} --allow-dirty
