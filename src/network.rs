@@ -1477,7 +1477,21 @@ impl<'a> Network<'a> {
   async fn refresh_authentication(&mut self) {
     if let Some(token_info) = self.oauth.get_cached_token().await {
       if let Some(refresh_token) = token_info.refresh_token {
-        if let Some(new_token_info) = crate::auth::refresh_token(&refresh_token) {
+        let using_own_app = !self.client_config.client_id.is_empty();
+        let client_id = if using_own_app {
+          self.client_config.client_id.clone()
+        } else {
+          crate::auth::NCSPOT_CLIENT_ID.to_string()
+        };
+        let redirect_uri = if using_own_app {
+          self.client_config.get_redirect_uri()
+        } else {
+          crate::auth::get_redirect_uri(crate::auth::find_free_port())
+        };
+
+        if let Some(new_token_info) =
+          crate::auth::refresh_token(&client_id, &redirect_uri, &refresh_token)
+        {
           let (new_spotify, new_token_expiry) = get_spotify(new_token_info.clone());
           self.spotify = new_spotify;
           let mut app = self.app.lock().await;

@@ -37,7 +37,7 @@ impl ClientConfig {
   }
 
   pub fn get_redirect_uri(&self) -> String {
-    format!("http://localhost:{}/callback", self.get_port())
+    format!("http://127.0.0.1:{}/callback", self.get_port())
   }
 
   pub fn get_port(&self) -> u16 {

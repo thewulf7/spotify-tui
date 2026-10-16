@@ -56,13 +56,8 @@ pub fn map_token(token: OAuthToken) -> TokenInfo {
   }
 }
 
-pub fn get_new_token() -> Option<TokenInfo> {
-  let port = find_free_port();
-  let builder = OAuthClientBuilder::new(
-    NCSPOT_CLIENT_ID,
-    &get_redirect_uri(port),
-    SCOPES.to_vec(),
-  );
+pub fn get_new_token(client_id: &str, redirect_uri: &str) -> Option<TokenInfo> {
+  let builder = OAuthClientBuilder::new(client_id, redirect_uri, SCOPES.to_vec());
 
   match builder.build() {
     Ok(client) => {
@@ -73,16 +68,11 @@ pub fn get_new_token() -> Option<TokenInfo> {
   }
 }
 
-pub fn refresh_token(refresh_token: &str) -> Option<TokenInfo> {
-    let port = find_free_port();
-    let builder = OAuthClientBuilder::new(
-        NCSPOT_CLIENT_ID,
-        &get_redirect_uri(port),
-        SCOPES.to_vec(),
-    );
+pub fn refresh_token(client_id: &str, redirect_uri: &str, refresh_token: &str) -> Option<TokenInfo> {
+  let builder = OAuthClientBuilder::new(client_id, redirect_uri, SCOPES.to_vec());
 
-    match builder.build() {
-        Ok(client) => client.refresh_token(refresh_token).ok().map(map_token),
-        Err(_) => None,
-    }
+  match builder.build() {
+    Ok(client) => client.refresh_token(refresh_token).ok().map(map_token),
+    Err(_) => None,
+  }
 }

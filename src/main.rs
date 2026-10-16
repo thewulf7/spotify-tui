@@ -171,17 +171,26 @@ of the app. Beware that this comes at a CPU cost!",
 
   let config_paths = client_config.get_or_build_paths()?;
 
-  // Start authorization with spotify
-  let client_id = if client_config.client_id.is_empty() {
-    NCSPOT_CLIENT_ID.to_string()
-  } else {
+  // Start authorization with spotify.
+  // If the user registered their own app (client.yml has a client_id), use
+  // its fixed, dashboard-registered redirect URI. Otherwise fall back to the
+  // shared ncspot client ID on a random local port (zero-setup default).
+  let using_own_app = !client_config.client_id.is_empty();
+  let client_id = if using_own_app {
     client_config.client_id.clone()
+  } else {
+    NCSPOT_CLIENT_ID.to_string()
+  };
+  let redirect_uri = if using_own_app {
+    client_config.get_redirect_uri()
+  } else {
+    auth::get_redirect_uri(auth::find_free_port())
   };
 
   let mut oauth = SpotifyOAuth::default()
     .client_id(&client_id)
     .client_secret(&client_config.client_secret)
-    .redirect_uri(&client_config.get_redirect_uri())
+    .redirect_uri(&redirect_uri)
     .cache_path(config_paths.token_cache_path.clone())
     .scope(&SCOPES.join(" "))
     .build();
@@ -189,7 +198,7 @@ of the app. Beware that this comes at a CPU cost!",
   let token_info = match oauth.get_cached_token().await {
     Some(token) => Some(token),
     None => {
-      let token = auth::get_new_token();
+      let token = auth::get_new_token(&client_id, &redirect_uri);
       if let Some(ref t) = token {
         if let Ok(token_str) = serde_json::to_string(t) {
           oauth.save_token_info(&token_str);
