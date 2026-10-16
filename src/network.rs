@@ -404,7 +404,16 @@ impl<'a> Network<'a> {
         }
       }
       Err(e) => {
-        self.handle_error(anyhow!(e)).await;
+        // `/v1/me/tracks/contains` is blocked with a bare 403 for apps
+        // without Spotify's "Extended Quota Mode" approval (policy change,
+        // 2025) -- which personal/hobby apps never get. It only powers the
+        // "liked" heart icon, so fail silently instead of popping the
+        // blocking error dialog over normal use (e.g. opening Recently
+        // Played).
+        eprintln!(
+          "current_user_saved_tracks_contains failed (likely missing Extended Quota Mode on this app): {}",
+          e
+        );
       }
     }
   }

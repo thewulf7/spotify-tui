@@ -17,6 +17,7 @@ pub struct FullTrack {
     pub disc_number: i32,
     pub duration_ms: u32,
     pub explicit: bool,
+    #[serde(default)]
     pub external_ids: HashMap<String, String>,
     pub external_urls: HashMap<String, String>,
     pub href: Option<String>,
@@ -29,6 +30,7 @@ pub struct FullTrack {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restrictions: Option<Restrictions>,
     pub name: String,
+    #[serde(default)]
     pub popularity: u32,
     pub preview_url: Option<String>,
     pub track_number: u32,
