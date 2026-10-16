@@ -6,7 +6,7 @@ documentation = "https://github.com/Rigellute/spotify-tui"
 repository = "https://github.com/thewulf7/spotify-tui"
 keywords = ["spotify", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
-version = "0.26.1"
+version = "0.27.0"
 authors = ["Alexander Keliris <rigellute@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -30,9 +30,15 @@ rand = "0.8.4"
 anyhow = "1.0.43"
 librespot-oauth = "0.8.0"
 chrono = "0.4"
+base64 = "0.22"
+librespot-core = "0.8.0"
+librespot-connect = "0.8.0"
+librespot-playback = { version = "0.8.0", default-features = false, features = ["rodio-backend"] }
+tokio1 = { package = "tokio", version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }
 
 [patch.crates-io]
 rspotify = { path = "vendor/rspotify_patch" }
+librespot-core = { path = "vendor/librespot_core_patch" }
 
 [[bin]]
 bench = false

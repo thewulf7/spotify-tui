@@ -1,0 +1,32 @@
+use rand::Rng;
+use rand_distr::Alphanumeric;
+use vergen_gitcl::{Build, Emitter, Gitcl};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let gitcl = Gitcl::builder()
+        .sha(true)
+        .commit_date(true)
+        .build();
+
+    let build = Build::builder()
+        .build_date(true)
+        .build();
+
+    Emitter::default()
+        .add_instructions(&build)?
+        .add_instructions(&gitcl)?
+        .emit()
+        .expect("Unable to generate the cargo keys!");
+
+    let build_id = match std::env::var("SOURCE_DATE_EPOCH") {
+        Ok(val) => val,
+        Err(_) => rand::rng()
+            .sample_iter(Alphanumeric)
+            .take(8)
+            .map(char::from)
+            .collect(),
+    };
+
+    println!("cargo:rustc-env=LIBRESPOT_BUILD_ID={build_id}");
+    Ok(())
+}

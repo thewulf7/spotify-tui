@@ -6,6 +6,7 @@ mod config;
 mod event;
 mod handlers;
 mod network;
+mod streaming;
 mod ui;
 mod user_config;
 
@@ -207,6 +208,72 @@ of the app. Beware that this comes at a CPU cost!",
   };
 
   let initial_no_device = client_config.device_id.is_none();
+
+  // Start the integrated Connect device in a background thread.
+  // It registers as "spt" in Spotify's device list; select it with `d`
+  // in the TUI to route audio locally.  Errors are non-fatal — if
+  // credentials aren't cached yet, the device simply won't appear.
+  //
+  // We look for librespot credentials in two places (in order):
+  //   1. ~/.config/spotify-tui/ (our own dir, written on first spt auth)
+  //   2. ~/.cache/spotify-player/ (shared with spotify-player if installed)
+  let _streaming_handle = {
+    let own_cache = config_paths
+      .token_cache_path
+      .parent()
+      .map(|p| p.to_path_buf())
+      .unwrap_or_default();
+    let shared_cache = dirs::home_dir()
+      .map(|h| h.join(".cache").join("spotify-player"))
+      .unwrap_or_default();
+
+    let cache_dir = if own_cache.join("credentials.json").exists() {
+      own_cache
+    } else {
+      shared_cache
+    };
+
+    // Read the freshest available access token. `get_cached_token()` already
+    // refreshed it above, so the on-disk cache file is always current.
+    let fresh_token = if config_paths.token_cache_path.exists() {
+      std::fs::read_to_string(&config_paths.token_cache_path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v["access_token"].as_str().map(|s| s.to_string()))
+    } else {
+      None
+    };
+
+    // Read the freshest available access token. `get_cached_token()` already
+    // refreshed it above, so the on-disk cache file is always current.
+    let fresh_token = if config_paths.token_cache_path.exists() {
+      std::fs::read_to_string(&config_paths.token_cache_path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v["access_token"].as_str().map(|s| s.to_string()))
+    } else {
+      None
+    };
+
+    match streaming::start(streaming::StreamingConfig {
+      cache_dir,
+      device_name: "spt".to_string(),
+      volume: 70,
+      bitrate: 320,
+    }) {
+      Ok(handle) => {
+        eprintln!("Integrated streaming device started.");
+        Some(handle)
+      }
+      Err(e) => {
+        eprintln!(
+          "Streaming device unavailable: {:?}. Use an external device.",
+          e
+        );
+        None
+      }
+    }
+  };
 
   match token_info {
     Some(token_info) => {
