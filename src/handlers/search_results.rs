@@ -327,7 +327,8 @@ fn handle_enter_event_on_selected_block(app: &mut App) {
           // Go to playlist tracks table
           app.track_table.context = Some(TrackTableContext::PlaylistSearch);
           let playlist_id = playlist.id.to_owned();
-          app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, app.playlist_offset));
+          let owner_id = playlist.owner.id.to_owned();
+          app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, owner_id, app.playlist_offset));
         };
       }
     }

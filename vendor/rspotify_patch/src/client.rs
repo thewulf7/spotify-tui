@@ -599,8 +599,13 @@ impl Spotify {
             params.insert("fields".to_owned(), _fields.to_string());
         }
         let plid = self.get_id(Type::Playlist, playlist_id);
-        // Modern endpoint: /playlists/{id}/tracks (user-scoped URL deprecated)
-        let url = format!("playlists/{}/tracks", plid);
+        // Use user-scoped URL when owner_id is known (required for followed private playlists).
+        // Fall back to modern /playlists/{id}/tracks when owner is unknown.
+        let url = if user_id.is_empty() {
+            format!("playlists/{}/tracks", plid)
+        } else {
+            format!("users/{}/playlists/{}/tracks", user_id, plid)
+        };
         let result = self.get(&url, &mut params).await?;
         self.convert_result::<Page<PlaylistTrack>>(&result)
     }

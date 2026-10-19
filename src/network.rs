@@ -41,7 +41,7 @@ pub enum IoEvent {
   GetSearchResults(String, Option<Country>),
   SetTracksToTable(Vec<FullTrack>),
   GetMadeForYouPlaylistTracks(String, u32),
-  GetPlaylistTracks(String, u32),
+  GetPlaylistTracks(String, String, u32),
   GetCurrentSavedTracks(Option<u32>),
   StartPlayback(Option<String>, Option<Vec<String>>, Option<usize>),
   UpdateSearchLimits(u32, u32),
@@ -176,8 +176,8 @@ impl<'a> Network<'a> {
           .get_made_for_you_playlist_tracks(playlist_id, made_for_you_offset)
           .await;
       }
-      IoEvent::GetPlaylistTracks(playlist_id, playlist_offset) => {
-        self.get_playlist_tracks(playlist_id, playlist_offset).await;
+      IoEvent::GetPlaylistTracks(playlist_id, owner_id, playlist_offset) => {
+        self.get_playlist_tracks(playlist_id, owner_id, playlist_offset).await;
       }
       IoEvent::GetCurrentSavedTracks(offset) => {
         self.get_current_user_saved_tracks(offset).await;
@@ -444,19 +444,19 @@ impl<'a> Network<'a> {
     }
   }
 
-  async fn get_playlist_tracks(&mut self, playlist_id: String, playlist_offset: u32) {
-    if let Ok(playlist_tracks) = self
+  async fn get_playlist_tracks(&mut self, playlist_id: String, owner_id: String, playlist_offset: u32) {
+    let pt_result = self
       .spotify
       .user_playlist_tracks(
-        "spotify",
+        &owner_id,
         &playlist_id,
         None,
         Some(self.large_search_limit),
         Some(playlist_offset),
         None,
       )
-      .await
-    {
+      .await;
+    if let Ok(playlist_tracks) = pt_result {
       self.set_playlist_tracks_to_table(&playlist_tracks).await;
 
       let mut app = self.app.lock().await;

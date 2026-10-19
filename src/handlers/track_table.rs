@@ -54,7 +54,8 @@ pub fn handler(key: Key, app: &mut App) {
                   if app.playlist_offset + app.large_search_limit < playlist_tracks.total {
                     app.playlist_offset += app.large_search_limit;
                     let playlist_id = selected_playlist.id.to_owned();
-                    app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, app.playlist_offset));
+                    let owner_id = selected_playlist.owner.id.to_owned();
+                    app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, owner_id, app.playlist_offset));
                   }
                 }
               }
@@ -107,7 +108,8 @@ pub fn handler(key: Key, app: &mut App) {
                 playlists.items.get(selected_playlist_index.to_owned())
               {
                 let playlist_id = selected_playlist.id.to_owned();
-                app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, app.playlist_offset));
+                let owner_id = selected_playlist.owner.id.to_owned();
+                app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, owner_id, app.playlist_offset));
               }
             };
           }
@@ -293,7 +295,8 @@ fn jump_to_end(app: &mut App) {
             if app.large_search_limit < total_tracks {
               app.playlist_offset = total_tracks - (total_tracks % app.large_search_limit);
               let playlist_id = selected_playlist.id.to_owned();
-              app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, app.playlist_offset));
+              let owner_id = selected_playlist.owner.id.to_owned();
+              app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, owner_id, app.playlist_offset));
             }
           }
         }
@@ -475,7 +478,8 @@ fn jump_to_start(app: &mut App) {
           if let Some(selected_playlist) = playlists.items.get(selected_playlist_index.to_owned()) {
             app.playlist_offset = 0;
             let playlist_id = selected_playlist.id.to_owned();
-            app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, app.playlist_offset));
+            let owner_id = selected_playlist.owner.id.to_owned();
+            app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, owner_id, app.playlist_offset));
           }
         }
       }
