@@ -322,6 +322,7 @@ pub struct App {
   io_tx: Option<Sender<IoEvent>>,
   pub is_fetching_current_playback: bool,
   pub spotify_token_expiry: SystemTime,
+  pub rate_limit_backoff_until: Option<SystemTime>,
   pub dialog: Option<String>,
   pub confirm: bool,
   /// Cached album art pixels for playbar: (image_url, pixel_rows).
@@ -414,6 +415,7 @@ impl Default for App {
       io_tx: None,
       is_fetching_current_playback: false,
       spotify_token_expiry: SystemTime::now(),
+      rate_limit_backoff_until: None,
       dialog: None,
       confirm: false,
       album_art_cache: None,
@@ -432,6 +434,7 @@ impl App {
       io_tx: Some(io_tx),
       user_config,
       spotify_token_expiry,
+      rate_limit_backoff_until: None,
       ..App::default()
     }
   }
@@ -484,6 +487,14 @@ impl App {
       .as_millis();
 
     if !self.is_fetching_current_playback && elapsed >= poll_interval_ms {
+      // Skip poll if we're in a rate-limit backoff window
+      let in_backoff = self
+        .rate_limit_backoff_until
+        .map(|t| std::time::SystemTime::now() < t)
+        .unwrap_or(false);
+      if in_backoff {
+        return;
+      }
       self.is_fetching_current_playback = true;
       match self.seek_ms {
         Some(seek_ms) => self.apply_seek(seek_ms as u32),

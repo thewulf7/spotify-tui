@@ -3642,7 +3642,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-tui"
-version = "0.29.5"
+version = "0.29.6"
 dependencies = [
  "anyhow",
  "arboard",

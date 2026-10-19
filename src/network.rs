@@ -317,6 +317,15 @@ impl<'a> Network<'a> {
 
   async fn handle_error(&mut self, e: anyhow::Error) {
     let mut app = self.app.lock().await;
+    // Check for 429 rate limit — set a backoff window so we stop hammering the API
+    let msg = e.to_string();
+    if msg.contains("429") || msg.contains("rate limit") || msg.contains("Rate") {
+      let backoff_secs = 30u64; // conservative: retry-after is typically 6-30s
+      app.rate_limit_backoff_until =
+        Some(std::time::SystemTime::now() + std::time::Duration::from_secs(backoff_secs));
+      eprintln!("[spt] 429 rate limit — backing off {}s", backoff_secs);
+      return; // don't surface as user-visible error
+    }
     app.handle_error(e);
   }
 
