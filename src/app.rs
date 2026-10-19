@@ -463,8 +463,13 @@ impl App {
   }
 
   fn poll_current_playback(&mut self) {
-    // Poll every 5 seconds
-    let poll_interval_ms = 5_000;
+    // Poll every 5s while playing, every 30s while paused/idle
+    let is_playing = self
+      .current_playback_context
+      .as_ref()
+      .map(|c| c.is_playing)
+      .unwrap_or(false);
+    let poll_interval_ms: u128 = if is_playing { 5_000 } else { 30_000 };
 
     let elapsed = self
       .instant_since_last_current_playback_poll
@@ -473,7 +478,6 @@ impl App {
 
     if !self.is_fetching_current_playback && elapsed >= poll_interval_ms {
       self.is_fetching_current_playback = true;
-      // Trigger the seek if the user has set a new position
       match self.seek_ms {
         Some(seek_ms) => self.apply_seek(seek_ms as u32),
         None => self.dispatch(IoEvent::GetCurrentPlayback),
