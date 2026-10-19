@@ -252,12 +252,8 @@ where
   };
 
   // Render context art sidebar
-  if let (Some(area), Some((_, lines))) = (art_area, &app.context_art_cache) {
-    let art_text = lines.join("\n");
-    let art_widget = Paragraph::new(Text::raw(art_text))
-      .block(Block::default().borders(Borders::NONE))
-      .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(art_widget, area);
+  if let (Some(area), Some((_, pixels))) = (art_area, &app.context_art_cache) {
+    render_pixel_art(f, pixels, area);
   }
 
   let current_route = app.get_current_route();
@@ -926,6 +922,37 @@ where
   )
 }
 
+/// Render pixel data using Unicode half-block (▀) characters with TrueColor fg/bg.
+/// `pixels` rows must be even-count; each pair of rows maps to one char row.
+fn render_pixel_art<B: Backend>(f: &mut Frame<B>, pixels: &[Vec<[u8; 3]>], area: Rect) {
+  if pixels.is_empty() {
+    return;
+  }
+  let char_rows = pixels.len() / 2;
+  let char_cols = pixels[0].len();
+  let lines: Vec<Spans> = (0..char_rows)
+    .map(|r| {
+      let top_row = &pixels[r * 2];
+      let bot_row = &pixels[r * 2 + 1];
+      let spans: Vec<Span> = (0..char_cols)
+        .map(|c| {
+          let [tr, tg, tb] = top_row[c];
+          let [br, bg, bb] = bot_row[c];
+          Span::styled(
+            "▀",
+            Style::default()
+              .fg(Color::Rgb(tr, tg, tb))
+              .bg(Color::Rgb(br, bg, bb)),
+          )
+        })
+        .collect();
+      Spans::from(spans)
+    })
+    .collect();
+  let widget = Paragraph::new(Text::from(lines)).block(Block::default().borders(Borders::NONE));
+  f.render_widget(widget, area);
+}
+
 pub fn draw_basic_view<B>(f: &mut Frame<B>, app: &App)
 where
   B: Backend,
@@ -977,13 +1004,9 @@ where
     .margin(1)
     .split(info_area);
 
-  // Render ASCII album art
-  if let (Some(area), Some((_, lines))) = (art_area, &app.album_art_cache) {
-    let art_text = lines.join("\n");
-    let art_widget = Paragraph::new(Text::raw(art_text))
-      .block(Block::default().borders(Borders::NONE))
-      .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(art_widget, area);
+  // Render playbar album art
+  if let (Some(area), Some((_, pixels))) = (art_area, &app.album_art_cache) {
+    render_pixel_art(f, pixels, area);
   }
 
   // If no track is playing, render paragraph showing which device is selected, if no selected

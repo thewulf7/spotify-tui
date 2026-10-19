@@ -324,10 +324,11 @@ pub struct App {
   pub spotify_token_expiry: SystemTime,
   pub dialog: Option<String>,
   pub confirm: bool,
-  /// Cached album art: (image_url, ascii_lines). Refreshed on track change.
-  pub album_art_cache: Option<(String, Vec<String>)>,
-  /// Cached context art: (image_url, ascii_lines). Refreshed on navigation.
-  pub context_art_cache: Option<(String, Vec<String>)>,
+  /// Cached album art pixels for playbar: (image_url, pixel_rows).
+  /// Each row is a Vec of [R,G,B] triples at playbar resolution.
+  pub album_art_cache: Option<(String, Vec<Vec<[u8; 3]>>)>,
+  /// Cached context art pixels: (image_url, pixel_rows) at content-area resolution.
+  pub context_art_cache: Option<(String, Vec<Vec<[u8; 3]>>)>,
 }
 
 impl Default for App {

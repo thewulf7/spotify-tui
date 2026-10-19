@@ -1587,9 +1587,9 @@ impl<'a> Network<'a> {
       _ => return,
     };
 
-    let ascii = image_to_ascii(&bytes, 20, 6);
+    let pixels = image_to_pixels(&bytes, 20, 12);
     let mut app = self.app.lock().await;
-    app.album_art_cache = Some((url, ascii));
+    app.album_art_cache = Some((url, pixels));
   }
 
   /// Download cover art for the current page (album/playlist/artist).
@@ -1603,40 +1603,31 @@ impl<'a> Network<'a> {
       _ => return,
     };
 
-    // Wider/taller for the content area sidebar
-    let ascii = image_to_ascii(&bytes, 38, 20);
+    let pixels = image_to_pixels(&bytes, 38, 40);
     let mut app = self.app.lock().await;
-    app.context_art_cache = Some((url, ascii));
+    app.context_art_cache = Some((url, pixels));
   }
 }
 
-/// Convert raw image bytes to ASCII art lines.
-/// width/height are in *characters* (each char ≈ 2px wide, 4px tall in most terminals).
-fn image_to_ascii(bytes: &[u8], width: u32, height: u32) -> Vec<String> {
+/// Resize image to (width × pixel_height) and return rows of RGB pixels.
+/// pixel_height = char_height * 2 because each terminal char holds 2 rows via ▀.
+fn image_to_pixels(bytes: &[u8], char_width: u32, char_height: u32) -> Vec<Vec<[u8; 3]>> {
   use image::GenericImageView;
-  // Density ramp: dark → light
-  const CHARS: &[u8] = b"@%#*+=-:. ";
-
   let img = match image::load_from_memory(bytes) {
     Ok(i) => i,
-    Err(_) => return vec!["[no art]".to_string()],
+    Err(_) => return vec![],
   };
-
-  // Resize to the target char dimensions
-  let img = img.resize_exact(width, height, image::imageops::FilterType::Lanczos3);
-
-  (0..height)
+  let pw = char_width;
+  let ph = char_height * 2; // 2 pixel rows per char row
+  let img = img.resize_exact(pw, ph, image::imageops::FilterType::Lanczos3);
+  (0..ph)
     .map(|y| {
-      (0..width)
+      (0..pw)
         .map(|x| {
           let px = img.get_pixel(x, y);
-          // luma: standard weighted average
-          let lum = (0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32) as u8;
-          // map 0-255 → index into CHARS (darker pixel → denser char)
-          let idx = (lum as usize * (CHARS.len() - 1)) / 255;
-          CHARS[idx] as char
+          [px[0], px[1], px[2]]
         })
-        .collect::<String>()
+        .collect()
     })
     .collect()
 }
