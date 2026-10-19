@@ -1008,9 +1008,9 @@ where
   if let (Some(area), Some((_, pixels))) = (art_area, &app.album_art_cache) {
     let inset = Rect {
       x: area.x.saturating_add(2),
-      y: area.y.saturating_add(2),
+      y: area.y.saturating_add(1),
       width: area.width.saturating_sub(2),
-      height: area.height.saturating_sub(2),
+      height: area.height.saturating_sub(1),
     };
     render_pixel_art(f, pixels, inset);
   }
