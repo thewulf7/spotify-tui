@@ -14,7 +14,7 @@
 
 A Spotify client for the terminal written in Rust.
 
-![Demo](https://user-images.githubusercontent.com/12150276/75177190-91d4ab00-572d-11ea-80bd-c5e28c7b17ad.gif)
+<img width="1212" height="1058" alt="image" src="https://github.com/user-attachments/assets/0a5c74f3-d066-4f9e-97f2-bc2520d0dfbc" />
 
 The terminal in the demo above is using the [Rigel theme](https://rigel.netlify.com/).
 
