@@ -185,7 +185,7 @@ where
   if app.size.width >= SMALL_TERMINAL_WIDTH && !app.user_config.behavior.enforce_wide_search_bar {
     let parent_layout = Layout::default()
       .direction(Direction::Vertical)
-      .constraints([Constraint::Min(1), Constraint::Length(6)].as_ref())
+      .constraints([Constraint::Min(1), Constraint::Length(8)].as_ref())
       .margin(margin)
       .split(f.size());
 
@@ -201,7 +201,7 @@ where
         [
           Constraint::Length(3),
           Constraint::Min(1),
-          Constraint::Length(6),
+          Constraint::Length(8),
         ]
         .as_ref(),
       )
@@ -233,44 +233,71 @@ where
 
   draw_user_block(f, app, chunks[0]);
 
+  // Split the right column: content | art (40 cols) when context art is cached
+  // and we're on a page that has cover art (album/playlist tracks).
+  let show_art = app.context_art_cache.is_some()
+    && matches!(
+      app.get_current_route().id,
+      RouteId::AlbumTracks | RouteId::TrackTable
+    );
+
+  let (content_area, art_area) = if show_art {
+    let h = Layout::default()
+      .direction(Direction::Horizontal)
+      .constraints([Constraint::Min(1), Constraint::Length(40)].as_ref())
+      .split(chunks[1]);
+    (h[0], Some(h[1]))
+  } else {
+    (chunks[1], None)
+  };
+
+  // Render context art sidebar
+  if let (Some(area), Some((_, lines))) = (art_area, &app.context_art_cache) {
+    let art_text = lines.join("\n");
+    let art_widget = Paragraph::new(Text::raw(art_text))
+      .block(Block::default().borders(Borders::NONE))
+      .style(Style::default().fg(Color::DarkGray));
+    f.render_widget(art_widget, area);
+  }
+
   let current_route = app.get_current_route();
 
   match current_route.id {
     RouteId::Search => {
-      draw_search_results(f, app, chunks[1]);
+      draw_search_results(f, app, content_area);
     }
     RouteId::TrackTable => {
-      draw_song_table(f, app, chunks[1]);
+      draw_song_table(f, app, content_area);
     }
     RouteId::AlbumTracks => {
-      draw_album_table(f, app, chunks[1]);
+      draw_album_table(f, app, content_area);
     }
     RouteId::RecentlyPlayed => {
-      draw_recently_played_table(f, app, chunks[1]);
+      draw_recently_played_table(f, app, content_area);
     }
     RouteId::Artist => {
-      draw_artist_albums(f, app, chunks[1]);
+      draw_artist_albums(f, app, content_area);
     }
     RouteId::AlbumList => {
-      draw_album_list(f, app, chunks[1]);
+      draw_album_list(f, app, content_area);
     }
     RouteId::PodcastEpisodes => {
-      draw_show_episodes(f, app, chunks[1]);
+      draw_show_episodes(f, app, content_area);
     }
     RouteId::Home => {
-      draw_home(f, app, chunks[1]);
+      draw_home(f, app, content_area);
     }
     RouteId::MadeForYou => {
-      draw_made_for_you(f, app, chunks[1]);
+      draw_made_for_you(f, app, content_area);
     }
     RouteId::Artists => {
-      draw_artist_table(f, app, chunks[1]);
+      draw_artist_table(f, app, content_area);
     }
     RouteId::Podcasts => {
-      draw_podcast_table(f, app, chunks[1]);
+      draw_podcast_table(f, app, content_area);
     }
     RouteId::Recommendations => {
-      draw_recommendations_table(f, app, chunks[1]);
+      draw_recommendations_table(f, app, content_area);
     }
     RouteId::Error => {} // This is handled as a "full screen" route in main.rs
     RouteId::SelectedDevice => {} // This is handled as a "full screen" route in main.rs

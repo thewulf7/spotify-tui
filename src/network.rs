@@ -33,7 +33,8 @@ use tokio::try_join;
 #[derive(Debug)]
 pub enum IoEvent {
   GetCurrentPlayback,
-  FetchAlbumArt(String), // image URL
+  FetchAlbumArt(String),   // image URL for playbar
+  FetchContextArt(String), // image URL for current page (album/playlist/artist)
   RefreshAuthentication,
   GetPlaylists,
   GetDevices,
@@ -160,6 +161,9 @@ impl<'a> Network<'a> {
       }
       IoEvent::FetchAlbumArt(url) => {
         self.fetch_album_art(url).await;
+      }
+      IoEvent::FetchContextArt(url) => {
+        self.fetch_context_art(url).await;
       }
       IoEvent::SetTracksToTable(full_tracks) => {
         self.set_tracks_to_table(full_tracks).await;
@@ -458,6 +462,25 @@ impl<'a> Network<'a> {
       let mut app = self.app.lock().await;
       app.playlist_tracks = Some(playlist_tracks);
       app.push_navigation_stack(RouteId::TrackTable, ActiveBlock::TrackTable);
+
+      // Fetch cover art for the playlist
+      let img_url = app.playlists.as_ref().and_then(|page| {
+        page
+          .items
+          .iter()
+          .find(|pl| pl.id == playlist_id)
+          .and_then(|pl| pl.images.first().map(|img| img.url.clone()))
+      });
+      if let Some(url) = img_url {
+        let cached_url = app
+          .context_art_cache
+          .as_ref()
+          .map(|(u, _)| u.as_str())
+          .unwrap_or("");
+        if cached_url != url {
+          app.dispatch(IoEvent::FetchContextArt(url));
+        }
+      }
     };
   }
 
@@ -980,7 +1003,7 @@ impl<'a> Network<'a> {
         Ok(tracks) => {
           let mut app = self.app.lock().await;
           app.selected_album_simplified = Some(SelectedAlbum {
-            album: *album,
+            album: *album.clone(),
             tracks,
             selected_index: 0,
           });
@@ -988,6 +1011,19 @@ impl<'a> Network<'a> {
           app.album_table_context = AlbumTableContext::Simplified;
           app.push_navigation_stack(RouteId::AlbumTracks, ActiveBlock::AlbumTracks);
           // ponytail: SavedTracksContains always 403s without Extended Quota Mode; skip it
+
+          // Fetch cover art for the album
+          let img_url = album.images.first().map(|img| img.url.clone());
+          if let Some(url) = img_url {
+            let cached = app
+              .context_art_cache
+              .as_ref()
+              .map(|(u, _)| u.as_str())
+              .unwrap_or("");
+            if cached != url {
+              app.dispatch(IoEvent::FetchContextArt(url));
+            }
+          }
         }
         Err(e) => {
           self.handle_error(anyhow!(e)).await;
@@ -1540,18 +1576,37 @@ impl<'a> Network<'a> {
 
   /// Download album art and convert to ASCII lines for the playbar.
   async fn fetch_album_art(&mut self, url: String) {
-    // Use reqwest (already in tree via librespot-oauth) to download
-    let bytes = match reqwest::get(&url).await {
-      Ok(resp) => match resp.bytes().await {
-        Ok(b) => b,
-        Err(_) => return,
-      },
-      Err(_) => return,
+    // Use curl via subprocess — avoids tokio runtime version mismatch
+    // (spt's network thread runs tokio 0.2; reqwest 0.12 needs tokio 1).
+    let output = std::process::Command::new("curl")
+      .args(["--silent", "--max-time", "5", &url])
+      .output();
+
+    let bytes = match output {
+      Ok(o) if o.status.success() => o.stdout,
+      _ => return,
     };
 
-    let ascii = image_to_ascii(&bytes, 20, 10);
+    let ascii = image_to_ascii(&bytes, 20, 6);
     let mut app = self.app.lock().await;
     app.album_art_cache = Some((url, ascii));
+  }
+
+  /// Download cover art for the current page (album/playlist/artist).
+  async fn fetch_context_art(&mut self, url: String) {
+    let output = std::process::Command::new("curl")
+      .args(["--silent", "--max-time", "5", &url])
+      .output();
+
+    let bytes = match output {
+      Ok(o) if o.status.success() => o.stdout,
+      _ => return,
+    };
+
+    // Wider/taller for the content area sidebar
+    let ascii = image_to_ascii(&bytes, 38, 20);
+    let mut app = self.app.lock().await;
+    app.context_art_cache = Some((url, ascii));
   }
 }
 

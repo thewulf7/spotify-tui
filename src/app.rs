@@ -326,6 +326,8 @@ pub struct App {
   pub confirm: bool,
   /// Cached album art: (image_url, ascii_lines). Refreshed on track change.
   pub album_art_cache: Option<(String, Vec<String>)>,
+  /// Cached context art: (image_url, ascii_lines). Refreshed on navigation.
+  pub context_art_cache: Option<(String, Vec<String>)>,
 }
 
 impl Default for App {
@@ -414,6 +416,7 @@ impl Default for App {
       dialog: None,
       confirm: false,
       album_art_cache: None,
+      context_art_cache: None,
     }
   }
 }
