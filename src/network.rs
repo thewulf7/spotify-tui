@@ -1469,32 +1469,32 @@ impl<'a> Network<'a> {
   }
 
   async fn refresh_authentication(&mut self) {
-    if let Some(token_info) = self.oauth.get_cached_token().await {
-      if let Some(refresh_token) = token_info.refresh_token {
-        let using_own_app = !self.client_config.client_id.is_empty();
-        let client_id = if using_own_app {
-          self.client_config.client_id.clone()
-        } else {
-          crate::auth::NCSPOT_CLIENT_ID.to_string()
-        };
-        let redirect_uri = if using_own_app {
-          self.client_config.get_redirect_uri()
-        } else {
-          crate::auth::get_redirect_uri(crate::auth::find_free_port())
-        };
+    // rspotify's get_cached_token() tries a client_credentials refresh which
+    // Spotify now rejects ("Only code_challenge_method S256 is supported").
+    // Read the cached refresh_token directly and use our PKCE refresh instead.
+    let cache_path = self.oauth.cache_path.clone();
+    let refresh_token = std::fs::read_to_string(&cache_path)
+      .ok()
+      .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+      .and_then(|v| v["refresh_token"].as_str().map(|s| s.to_string()));
 
-        if let Some(new_token_info) =
-          crate::auth::refresh_token(&client_id, &redirect_uri, &refresh_token)
-        {
-          let (new_spotify, new_token_expiry) = get_spotify(new_token_info.clone());
-          self.spotify = new_spotify;
-          let mut app = self.app.lock().await;
-          app.spotify_token_expiry = new_token_expiry;
-          if let Ok(token_str) = serde_json::to_string(&new_token_info) {
-            self.oauth.save_token_info(&token_str);
-          }
-          return;
+    if let Some(refresh_token) = refresh_token {
+      let using_own_app = !self.client_config.client_id.is_empty();
+      let client_id = if using_own_app {
+        self.client_config.client_id.clone()
+      } else {
+        crate::auth::NCSPOT_CLIENT_ID.to_string()
+      };
+
+      if let Some(new_token_info) = crate::auth::pkce_refresh_token(&client_id, &refresh_token) {
+        let (new_spotify, new_token_expiry) = get_spotify(new_token_info.clone());
+        self.spotify = new_spotify;
+        let mut app = self.app.lock().await;
+        app.spotify_token_expiry = new_token_expiry;
+        if let Ok(token_str) = serde_json::to_string(&new_token_info) {
+          self.oauth.save_token_info(&token_str);
         }
+        return;
       }
     }
 

@@ -3,6 +3,20 @@ use rspotify::oauth2::TokenInfo;
 use std::net::TcpListener;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+/// Refresh an access token using PKCE (no client_secret).
+/// rspotify's built-in refresh uses client_credentials which Spotify
+/// now rejects with "Only code_challenge_method S256 is supported".
+/// librespot-oauth's refresh_token() is a direct HTTP call, no browser.
+pub fn pkce_refresh_token(client_id: &str, refresh_token: &str) -> Option<TokenInfo> {
+  // Reuse librespot-oauth's OAuthClient — its refresh_token() method
+  // calls Spotify's token endpoint directly (no browser, no PKCE challenge).
+  let builder =
+    OAuthClientBuilder::new(client_id, "http://127.0.0.1:8888/callback", SCOPES.to_vec());
+  let client = builder.build().ok()?;
+  let token = client.refresh_token(refresh_token).ok()?;
+  Some(map_token(token))
+}
+
 pub const NCSPOT_CLIENT_ID: &str = "d420a117a32841c2b3474932e49fb54b";
 
 pub static SCOPES: &[&str] = &[

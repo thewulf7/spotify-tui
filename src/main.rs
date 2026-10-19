@@ -194,16 +194,47 @@ of the app. Beware that this comes at a CPU cost!",
     .scope(&SCOPES.join(" "))
     .build();
 
-  let token_info = match oauth.get_cached_token().await {
-    Some(token) => Some(token),
-    None => {
-      let token = auth::get_new_token(&client_id, &redirect_uri);
-      if let Some(ref t) = token {
-        if let Ok(token_str) = serde_json::to_string(t) {
-          oauth.save_token_info(&token_str);
+  // Try loading a cached token. If expired, refresh via PKCE (not client_credentials
+  // which Spotify now rejects with "Only code_challenge_method S256 is supported").
+  let token_info = {
+    let cached = oauth.get_cached_token().await;
+    match cached {
+      Some(t)
+        if t
+          .expires_at
+          .map(|e| e > chrono::Utc::now().timestamp())
+          .unwrap_or(false) =>
+      {
+        Some(t)
+      }
+      _ => {
+        // Try PKCE refresh from the cache file directly
+        let refreshed = std::fs::read_to_string(&config_paths.token_cache_path)
+          .ok()
+          .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+          .and_then(|v| v["refresh_token"].as_str().map(|s| s.to_string()))
+          .and_then(|rt| auth::pkce_refresh_token(&client_id, &rt));
+
+        if let Some(ref t) = refreshed {
+          if let Ok(token_str) = serde_json::to_string(t) {
+            oauth.save_token_info(&token_str);
+          }
+        }
+
+        // Fall back to full interactive auth if refresh failed
+        match refreshed {
+          Some(t) => Some(t),
+          None => {
+            let token = auth::get_new_token(&client_id, &redirect_uri);
+            if let Some(ref t) = token {
+              if let Ok(token_str) = serde_json::to_string(t) {
+                oauth.save_token_info(&token_str);
+              }
+            }
+            token
+          }
         }
       }
-      token
     }
   };
 
@@ -231,28 +262,6 @@ of the app. Beware that this comes at a CPU cost!",
       own_cache
     } else {
       shared_cache
-    };
-
-    // Read the freshest available access token. `get_cached_token()` already
-    // refreshed it above, so the on-disk cache file is always current.
-    let fresh_token = if config_paths.token_cache_path.exists() {
-      std::fs::read_to_string(&config_paths.token_cache_path)
-        .ok()
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-        .and_then(|v| v["access_token"].as_str().map(|s| s.to_string()))
-    } else {
-      None
-    };
-
-    // Read the freshest available access token. `get_cached_token()` already
-    // refreshed it above, so the on-disk cache file is always current.
-    let fresh_token = if config_paths.token_cache_path.exists() {
-      std::fs::read_to_string(&config_paths.token_cache_path)
-        .ok()
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-        .and_then(|v| v["access_token"].as_str().map(|s| s.to_string()))
-    } else {
-      None
     };
 
     match streaming::start(streaming::StreamingConfig {
