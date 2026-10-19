@@ -324,6 +324,8 @@ pub struct App {
   pub spotify_token_expiry: SystemTime,
   pub dialog: Option<String>,
   pub confirm: bool,
+  /// Cached album art: (image_url, ascii_lines). Refreshed on track change.
+  pub album_art_cache: Option<(String, Vec<String>)>,
 }
 
 impl Default for App {
@@ -411,6 +413,7 @@ impl Default for App {
       spotify_token_expiry: SystemTime::now(),
       dialog: None,
       confirm: false,
+      album_art_cache: None,
     }
   }
 }

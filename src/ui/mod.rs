@@ -15,7 +15,7 @@ use rspotify::senum::RepeatState;
 use tui::{
   backend::Backend,
   layout::{Alignment, Constraint, Direction, Layout, Rect},
-  style::{Modifier, Style},
+  style::{Color, Modifier, Style},
   text::{Span, Spans, Text},
   widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Row, Table, Wrap},
   Frame,
@@ -926,6 +926,17 @@ pub fn draw_playbar<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
 where
   B: Backend,
 {
+  // If album art is cached, split horizontally: 22-col art | rest
+  let (art_area, info_area) = if app.album_art_cache.is_some() {
+    let h = Layout::default()
+      .direction(Direction::Horizontal)
+      .constraints([Constraint::Length(22), Constraint::Min(0)].as_ref())
+      .split(layout_chunk);
+    (Some(h[0]), h[1])
+  } else {
+    (None, layout_chunk)
+  };
+
   let chunks = Layout::default()
     .direction(Direction::Vertical)
     .constraints(
@@ -937,7 +948,16 @@ where
       .as_ref(),
     )
     .margin(1)
-    .split(layout_chunk);
+    .split(info_area);
+
+  // Render ASCII album art
+  if let (Some(area), Some((_, lines))) = (art_area, &app.album_art_cache) {
+    let art_text = lines.join("\n");
+    let art_widget = Paragraph::new(Text::raw(art_text))
+      .block(Block::default().borders(Borders::NONE))
+      .style(Style::default().fg(Color::DarkGray));
+    f.render_widget(art_widget, area);
+  }
 
   // If no track is playing, render paragraph showing which device is selected, if no selected
   // give hint to choose a device

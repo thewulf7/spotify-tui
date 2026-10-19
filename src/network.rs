@@ -33,6 +33,7 @@ use tokio::try_join;
 #[derive(Debug)]
 pub enum IoEvent {
   GetCurrentPlayback,
+  FetchAlbumArt(String), // image URL
   RefreshAuthentication,
   GetPlaylists,
   GetDevices,
@@ -156,6 +157,9 @@ impl<'a> Network<'a> {
       }
       IoEvent::GetCurrentPlayback => {
         self.get_current_playback().await;
+      }
+      IoEvent::FetchAlbumArt(url) => {
+        self.fetch_album_art(url).await;
       }
       IoEvent::SetTracksToTable(full_tracks) => {
         self.set_tracks_to_table(full_tracks).await;
@@ -360,6 +364,26 @@ impl<'a> Network<'a> {
         let mut app = self.app.lock().await;
         app.current_playback_context = Some(c.clone());
         app.instant_since_last_current_playback_poll = Instant::now();
+
+        // Fetch album art when track changes (or cache is empty)
+        if let Some(item) = &c.item {
+          if let PlayingItem::Track(track) = item {
+            let new_url = track
+              .album
+              .images
+              .first()
+              .map(|img| img.url.clone())
+              .unwrap_or_default();
+            let cached_url = app
+              .album_art_cache
+              .as_ref()
+              .map(|(u, _)| u.clone())
+              .unwrap_or_default();
+            if new_url != cached_url && !new_url.is_empty() {
+              app.dispatch(IoEvent::FetchAlbumArt(new_url));
+            }
+          }
+        }
 
         if let Some(item) = c.item {
           match item {
@@ -1513,4 +1537,51 @@ impl<'a> Network<'a> {
       }
     }
   }
+
+  /// Download album art and convert to ASCII lines for the playbar.
+  async fn fetch_album_art(&mut self, url: String) {
+    // Use reqwest (already in tree via librespot-oauth) to download
+    let bytes = match reqwest::get(&url).await {
+      Ok(resp) => match resp.bytes().await {
+        Ok(b) => b,
+        Err(_) => return,
+      },
+      Err(_) => return,
+    };
+
+    let ascii = image_to_ascii(&bytes, 20, 10);
+    let mut app = self.app.lock().await;
+    app.album_art_cache = Some((url, ascii));
+  }
+}
+
+/// Convert raw image bytes to ASCII art lines.
+/// width/height are in *characters* (each char ≈ 2px wide, 4px tall in most terminals).
+fn image_to_ascii(bytes: &[u8], width: u32, height: u32) -> Vec<String> {
+  use image::GenericImageView;
+  // Density ramp: dark → light
+  const CHARS: &[u8] = b"@%#*+=-:. ";
+
+  let img = match image::load_from_memory(bytes) {
+    Ok(i) => i,
+    Err(_) => return vec!["[no art]".to_string()],
+  };
+
+  // Resize to the target char dimensions
+  let img = img.resize_exact(width, height, image::imageops::FilterType::Lanczos3);
+
+  (0..height)
+    .map(|y| {
+      (0..width)
+        .map(|x| {
+          let px = img.get_pixel(x, y);
+          // luma: standard weighted average
+          let lum = (0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32) as u8;
+          // map 0-255 → index into CHARS (darker pixel → denser char)
+          let idx = (lum as usize * (CHARS.len() - 1)) / 255;
+          CHARS[idx] as char
+        })
+        .collect::<String>()
+    })
+    .collect()
 }

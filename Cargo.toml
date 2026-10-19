@@ -6,7 +6,7 @@ documentation = "https://github.com/Rigellute/spotify-tui"
 repository = "https://github.com/thewulf7/spotify-tui"
 keywords = ["spotify", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
-version = "0.27.4"
+version = "0.27.5"
 authors = ["Alexander Keliris <rigellute@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -35,6 +35,8 @@ librespot-core = "0.8.0"
 librespot-connect = "0.8.0"
 librespot-playback = { version = "0.8.0", default-features = false, features = ["rodio-backend"] }
 tokio1 = { package = "tokio", version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+image = { version = "0.23", default-features = false, features = ["jpeg", "png"] }
 
 [patch.crates-io]
 rspotify = { path = "vendor/rspotify_patch" }
