@@ -42,12 +42,27 @@ pub fn handler(key: Key, app: &mut App) {
     Key::Enter => {
       if let Some(albums) = app.library.saved_albums.get_results(None) {
         if let Some(selected_album) = albums.items.get(app.album_list_index) {
+          let img_url = selected_album
+            .album
+            .images
+            .first()
+            .map(|img| img.url.clone());
           app.selected_album_full = Some(SelectedFullAlbum {
             album: selected_album.album.clone(),
             selected_index: 0,
           });
           app.album_table_context = AlbumTableContext::Full;
           app.push_navigation_stack(RouteId::AlbumTracks, ActiveBlock::AlbumTracks);
+          if let Some(url) = img_url {
+            let cached = app
+              .context_art_cache
+              .as_ref()
+              .map(|(u, _)| u.as_str())
+              .unwrap_or("");
+            if cached != url {
+              app.dispatch(crate::network::IoEvent::FetchContextArt(url));
+            }
+          }
         };
       }
     }

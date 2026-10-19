@@ -1456,6 +1456,7 @@ impl<'a> Network<'a> {
   async fn get_album(&mut self, album_id: String) {
     match self.spotify.album(&album_id).await {
       Ok(album) => {
+        let img_url = album.images.first().map(|img| img.url.clone());
         let selected_album = SelectedFullAlbum {
           album,
           selected_index: 0,
@@ -1466,6 +1467,17 @@ impl<'a> Network<'a> {
         app.selected_album_full = Some(selected_album);
         app.album_table_context = AlbumTableContext::Full;
         app.push_navigation_stack(RouteId::AlbumTracks, ActiveBlock::AlbumTracks);
+
+        if let Some(url) = img_url {
+          let cached = app
+            .context_art_cache
+            .as_ref()
+            .map(|(u, _)| u.as_str())
+            .unwrap_or("");
+          if cached != url {
+            app.dispatch(IoEvent::FetchContextArt(url));
+          }
+        }
       }
       Err(e) => {
         self.handle_error(anyhow!(e)).await;
