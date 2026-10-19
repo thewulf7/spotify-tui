@@ -984,7 +984,7 @@ where
   let (art_area, info_area) = if app.album_art_cache.is_some() {
     let h = Layout::default()
       .direction(Direction::Horizontal)
-      .constraints([Constraint::Length(22), Constraint::Min(0)].as_ref())
+      .constraints([Constraint::Length(13), Constraint::Min(0)].as_ref())
       .split(layout_chunk);
     (Some(h[0]), h[1])
   } else {
