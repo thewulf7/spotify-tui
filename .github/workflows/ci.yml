@@ -12,6 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y -qq libasound2-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev pkg-config
       - uses: Swatinem/rust-cache@v2
       - run: cargo check
 
@@ -21,8 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      # These dependencies are required for `clipboard`/`arboard`
-      - run: sudo apt-get update && sudo apt-get install -y -qq libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+      - run: sudo apt-get update && sudo apt-get install -y -qq libasound2-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev pkg-config
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
 
@@ -40,13 +40,12 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
-    # Legacy lint debt predates this fork's changes; report findings
-    # without blocking merges until it's cleaned up.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      - run: sudo apt-get update && sudo apt-get install -y -qq libasound2-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev pkg-config
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy
