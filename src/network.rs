@@ -177,7 +177,9 @@ impl<'a> Network<'a> {
           .await;
       }
       IoEvent::GetPlaylistTracks(playlist_id, owner_id, playlist_offset) => {
-        self.get_playlist_tracks(playlist_id, owner_id, playlist_offset).await;
+        self
+          .get_playlist_tracks(playlist_id, owner_id, playlist_offset)
+          .await;
       }
       IoEvent::GetCurrentSavedTracks(offset) => {
         self.get_current_user_saved_tracks(offset).await;
@@ -453,7 +455,12 @@ impl<'a> Network<'a> {
     }
   }
 
-  async fn get_playlist_tracks(&mut self, playlist_id: String, owner_id: String, playlist_offset: u32) {
+  async fn get_playlist_tracks(
+    &mut self,
+    playlist_id: String,
+    owner_id: String,
+    playlist_offset: u32,
+  ) {
     let pt_result = self
       .spotify
       .user_playlist_tracks(
@@ -1572,7 +1579,9 @@ impl<'a> Network<'a> {
       } else {
         crate::auth::NCSPOT_REDIRECT_URI.to_string()
       };
-      if let Some(new_token_info) = crate::auth::pkce_refresh_token(&client_id, &redirect_uri, &refresh_token) {
+      if let Some(new_token_info) =
+        crate::auth::pkce_refresh_token(&client_id, &redirect_uri, &refresh_token)
+      {
         let (new_spotify, new_token_expiry) = get_spotify(new_token_info.clone());
         self.spotify = new_spotify;
         let mut app = self.app.lock().await;

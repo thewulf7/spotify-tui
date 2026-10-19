@@ -7,7 +7,11 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 /// rspotify's built-in refresh uses client_credentials which Spotify
 /// now rejects with "Only code_challenge_method S256 is supported".
 /// librespot-oauth's refresh_token() is a direct HTTP call, no browser.
-pub fn pkce_refresh_token(client_id: &str, redirect_uri: &str, refresh_token: &str) -> Option<TokenInfo> {
+pub fn pkce_refresh_token(
+  client_id: &str,
+  redirect_uri: &str,
+  refresh_token: &str,
+) -> Option<TokenInfo> {
   let builder = OAuthClientBuilder::new(client_id, redirect_uri, SCOPES.to_vec());
   let client = builder.build().ok()?;
   let token = client.refresh_token(refresh_token).ok()?;
@@ -108,13 +112,19 @@ pub fn bootstrap_from_spotify_player_cache(client_id: &str) -> Option<TokenInfo>
   // The refresh_token is valid regardless of which redirect_uri was used at auth time.
   let output = std::process::Command::new("curl")
     .args([
-      "--silent", "--max-time", "10",
-      "-X", "POST", "https://accounts.spotify.com/api/token",
-      "-d", &format!(
+      "--silent",
+      "--max-time",
+      "10",
+      "-X",
+      "POST",
+      "https://accounts.spotify.com/api/token",
+      "-d",
+      &format!(
         "grant_type=refresh_token&refresh_token={}&client_id={}",
         refresh_token, client_id
       ),
-      "-H", "Content-Type: application/x-www-form-urlencoded",
+      "-H",
+      "Content-Type: application/x-www-form-urlencoded",
     ])
     .output()
     .ok()?;

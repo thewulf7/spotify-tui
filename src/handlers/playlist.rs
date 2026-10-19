@@ -68,7 +68,11 @@ pub fn handler(key: Key, app: &mut App) {
         if let Some(selected_playlist) = playlists.items.get(selected_playlist_index.to_owned()) {
           let playlist_id = selected_playlist.id.to_owned();
           let owner_id = selected_playlist.owner.id.to_owned();
-          app.dispatch(IoEvent::GetPlaylistTracks(playlist_id, owner_id, app.playlist_offset));
+          app.dispatch(IoEvent::GetPlaylistTracks(
+            playlist_id,
+            owner_id,
+            app.playlist_offset,
+          ));
         }
       };
     }

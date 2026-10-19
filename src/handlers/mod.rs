@@ -201,9 +201,11 @@ fn handle_jump_to_context(app: &mut App) {
       match play_context._type {
         rspotify::senum::Type::Album => handle_jump_to_album(app),
         rspotify::senum::Type::Artist => handle_jump_to_artist_album(app),
-        rspotify::senum::Type::Playlist => {
-          app.dispatch(IoEvent::GetPlaylistTracks(play_context.uri, String::new(), 0))
-        }
+        rspotify::senum::Type::Playlist => app.dispatch(IoEvent::GetPlaylistTracks(
+          play_context.uri,
+          String::new(),
+          0,
+        )),
         _ => {}
       }
     }
