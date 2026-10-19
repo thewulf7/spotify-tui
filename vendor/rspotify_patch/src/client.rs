@@ -599,7 +599,8 @@ impl Spotify {
             params.insert("fields".to_owned(), _fields.to_string());
         }
         let plid = self.get_id(Type::Playlist, playlist_id);
-        let url = format!("users/{}/playlists/{}/tracks", user_id, plid);
+        // Modern endpoint: /playlists/{id}/tracks (user-scoped URL deprecated)
+        let url = format!("playlists/{}/tracks", plid);
         let result = self.get(&url, &mut params).await?;
         self.convert_result::<Page<PlaylistTrack>>(&result)
     }
