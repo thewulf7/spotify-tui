@@ -1558,7 +1558,12 @@ impl<'a> Network<'a> {
         crate::auth::NCSPOT_CLIENT_ID.to_string()
       };
 
-      if let Some(new_token_info) = crate::auth::pkce_refresh_token(&client_id, &refresh_token) {
+      let redirect_uri = if using_own_app {
+        format!("http://127.0.0.1:{}/callback", 8888)
+      } else {
+        crate::auth::NCSPOT_REDIRECT_URI.to_string()
+      };
+      if let Some(new_token_info) = crate::auth::pkce_refresh_token(&client_id, &redirect_uri, &refresh_token) {
         let (new_spotify, new_token_expiry) = get_spotify(new_token_info.clone());
         self.spotify = new_spotify;
         let mut app = self.app.lock().await;

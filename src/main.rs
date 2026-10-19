@@ -183,7 +183,7 @@ of the app. Beware that this comes at a CPU cost!",
   let redirect_uri = if using_own_app {
     client_config.get_redirect_uri()
   } else {
-    auth::get_redirect_uri(auth::find_free_port())
+    auth::NCSPOT_REDIRECT_URI.to_string()
   };
 
   let mut oauth = SpotifyOAuth::default()
@@ -213,7 +213,7 @@ of the app. Beware that this comes at a CPU cost!",
           .ok()
           .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
           .and_then(|v| v["refresh_token"].as_str().map(|s| s.to_string()))
-          .and_then(|rt| auth::pkce_refresh_token(&client_id, &rt));
+          .and_then(|rt| auth::pkce_refresh_token(&client_id, &redirect_uri, &rt));
 
         if let Some(ref t) = refreshed {
           if let Ok(token_str) = serde_json::to_string(t) {
