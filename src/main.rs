@@ -221,17 +221,33 @@ of the app. Beware that this comes at a CPU cost!",
           }
         }
 
-        // Fall back to full interactive auth if refresh failed
+        // Fall back to full interactive auth if refresh failed.
+        // For the ncspot client, first try to bootstrap from spotify-player's token cache
+        // (avoids the browser flow + redirect_uri mismatch).
         match refreshed {
           Some(t) => Some(t),
           None => {
-            let token = auth::get_new_token(&client_id, &redirect_uri);
-            if let Some(ref t) = token {
+            let bootstrapped = if !using_own_app {
+              auth::bootstrap_from_spotify_player_cache(&client_id)
+            } else {
+              None
+            };
+            if let Some(ref t) = bootstrapped {
               if let Ok(token_str) = serde_json::to_string(t) {
                 oauth.save_token_info(&token_str);
               }
             }
-            token
+            if bootstrapped.is_some() {
+              bootstrapped
+            } else {
+              let token = auth::get_new_token(&client_id, &redirect_uri);
+              if let Some(ref t) = token {
+                if let Ok(token_str) = serde_json::to_string(t) {
+                  oauth.save_token_info(&token_str);
+                }
+              }
+              token
+            }
           }
         }
       }

@@ -92,3 +92,56 @@ pub fn refresh_token(
     Err(_) => None,
   }
 }
+
+/// Try to bootstrap a spt token from spotify-player's cached token for the same client_id.
+/// This avoids a browser re-auth when spotify-player has already authenticated the same app.
+pub fn bootstrap_from_spotify_player_cache(client_id: &str) -> Option<TokenInfo> {
+  let cache_path = dirs::cache_dir()?
+    .join("spotify-player")
+    .join(format!("{}_token.json", client_id));
+
+  let content = std::fs::read_to_string(&cache_path).ok()?;
+  let v: serde_json::Value = serde_json::from_str(&content).ok()?;
+  let refresh_token = v["refresh_token"].as_str()?.to_string();
+
+  // Use a plain HTTP refresh — no redirect_uri flow needed for refresh grants.
+  // The refresh_token is valid regardless of which redirect_uri was used at auth time.
+  let output = std::process::Command::new("curl")
+    .args([
+      "--silent", "--max-time", "10",
+      "-X", "POST", "https://accounts.spotify.com/api/token",
+      "-d", &format!(
+        "grant_type=refresh_token&refresh_token={}&client_id={}",
+        refresh_token, client_id
+      ),
+      "-H", "Content-Type: application/x-www-form-urlencoded",
+    ])
+    .output()
+    .ok()?;
+
+  if !output.status.success() {
+    return None;
+  }
+
+  let tok: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+  let access_token = tok["access_token"].as_str()?.to_string();
+  let expires_in = tok["expires_in"].as_u64().unwrap_or(3600) as u32;
+  let new_refresh = tok["refresh_token"]
+    .as_str()
+    .unwrap_or(&refresh_token)
+    .to_string();
+
+  let now = std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .ok()?
+    .as_secs() as i64;
+
+  Some(TokenInfo {
+    access_token,
+    token_type: "Bearer".to_string(),
+    expires_in,
+    refresh_token: Some(new_refresh),
+    scope: SCOPES.join(" "),
+    expires_at: Some(now + expires_in as i64),
+  })
+}
