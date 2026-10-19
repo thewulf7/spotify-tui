@@ -1004,9 +1004,15 @@ where
     .margin(1)
     .split(info_area);
 
-  // Render playbar album art
+  // Render playbar album art — inset by 2 cols right + 2 rows down to stay inside the border
   if let (Some(area), Some((_, pixels))) = (art_area, &app.album_art_cache) {
-    render_pixel_art(f, pixels, area);
+    let inset = Rect {
+      x: area.x.saturating_add(2),
+      y: area.y.saturating_add(2),
+      width: area.width.saturating_sub(2),
+      height: area.height.saturating_sub(2),
+    };
+    render_pixel_art(f, pixels, inset);
   }
 
   // If no track is playing, render paragraph showing which device is selected, if no selected
