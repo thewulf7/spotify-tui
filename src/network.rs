@@ -1587,7 +1587,7 @@ impl<'a> Network<'a> {
       _ => return,
     };
 
-    let pixels = image_to_pixels(&bytes, 20, 12);
+    let pixels = image_to_pixels(&bytes, 20, 6);
     let mut app = self.app.lock().await;
     app.album_art_cache = Some((url, pixels));
   }
@@ -1603,7 +1603,7 @@ impl<'a> Network<'a> {
       _ => return,
     };
 
-    let pixels = image_to_pixels(&bytes, 38, 40);
+    let pixels = image_to_pixels(&bytes, 80, 20);
     let mut app = self.app.lock().await;
     app.context_art_cache = Some((url, pixels));
   }

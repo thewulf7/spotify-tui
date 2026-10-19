@@ -233,8 +233,8 @@ where
 
   draw_user_block(f, app, chunks[0]);
 
-  // Split the right column: content | art (40 cols) when context art is cached
-  // and we're on a page that has cover art (album/playlist tracks).
+  // Split the right column: art on top (20 rows) | content below.
+  // Only shown on album/playlist pages when art is cached.
   let show_art = app.context_art_cache.is_some()
     && matches!(
       app.get_current_route().id,
@@ -242,16 +242,16 @@ where
     );
 
   let (content_area, art_area) = if show_art {
-    let h = Layout::default()
-      .direction(Direction::Horizontal)
-      .constraints([Constraint::Min(1), Constraint::Length(40)].as_ref())
+    let v = Layout::default()
+      .direction(Direction::Vertical)
+      .constraints([Constraint::Length(20), Constraint::Min(1)].as_ref())
       .split(chunks[1]);
-    (h[0], Some(h[1]))
+    (v[1], Some(v[0]))
   } else {
     (chunks[1], None)
   };
 
-  // Render context art sidebar
+  // Render context art banner
   if let (Some(area), Some((_, pixels))) = (art_area, &app.context_art_cache) {
     render_pixel_art(f, pixels, area);
   }
