@@ -296,9 +296,9 @@ of the app. Beware that this comes at a CPU cost!",
     Some(token_info) => {
       let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();
 
-      // Prefer the librespot (Spotify official) token for Web API calls — it has
-      // Extended Quota and can access /playlists/{id}/tracks without 403.
-      // Fall back to the PKCE token if streaming hasn't authenticated yet.
+      // Apps created after Nov 2024 cannot access /playlists/{id}/tracks in Dev Mode.
+      // Use the librespot token (Spotify's own pre-2024 client, Extended Quota) instead.
+      // Falls back to the PKCE token if streaming hasn't authenticated yet.
       let streaming_cache = dirs::home_dir()
         .map(|h| h.join(".cache").join("spotify-player"))
         .unwrap_or_default();
