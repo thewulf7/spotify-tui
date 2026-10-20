@@ -118,6 +118,36 @@ fn obtain_streaming_token(cache_dir: &PathBuf, redirect_uri: &str) -> Result<Str
   Ok(token.access_token)
 }
 
+/// Get a fresh access token from the librespot (Spotify official client) token cache.
+/// This token has Extended Quota access and can reach all Web API endpoints.
+/// Returns None if the streaming device hasn't authenticated yet.
+pub fn get_web_api_token(cache_dir: &PathBuf) -> Option<String> {
+  let redirect_uri = {
+    let port = crate::auth::find_free_port();
+    crate::auth::get_redirect_uri(port)
+  };
+  let builder = OAuthClientBuilder::new(
+    SPOTIFY_OFFICIAL_CLIENT_ID,
+    &redirect_uri,
+    STREAMING_SCOPES.to_vec(),
+  );
+  let client = builder.build().ok()?;
+  let refresh = load_streaming_refresh_token(cache_dir)?;
+  match client.refresh_token(&refresh) {
+    Ok(token) => {
+      save_streaming_tokens(cache_dir, &token.refresh_token, &token.access_token);
+      Some(token.access_token)
+    }
+    Err(_) => {
+      // Fall back to cached access token (may be slightly stale but likely still valid)
+      let path = cache_dir.join(STREAMING_TOKEN_FILE);
+      let s = fs::read_to_string(&path).ok()?;
+      let v: serde_json::Value = serde_json::from_str(&s).ok()?;
+      v["access_token"].as_str().map(|s| s.to_string())
+    }
+  }
+}
+
 pub fn start(config: StreamingConfig) -> Result<StreamingHandle> {
   let redirect_uri = {
     let port = crate::auth::find_free_port();

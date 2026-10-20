@@ -296,7 +296,32 @@ of the app. Beware that this comes at a CPU cost!",
     Some(token_info) => {
       let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();
 
-      let (spotify, token_expiry) = get_spotify(token_info);
+      // Prefer the librespot (Spotify official) token for Web API calls — it has
+      // Extended Quota and can access /playlists/{id}/tracks without 403.
+      // Fall back to the PKCE token if streaming hasn't authenticated yet.
+      let streaming_cache = dirs::home_dir()
+        .map(|h| h.join(".cache").join("spotify-player"))
+        .unwrap_or_default();
+      let api_token_info = streaming::get_web_api_token(&streaming_cache)
+        .and_then(|at| {
+          Some(rspotify::oauth2::TokenInfo {
+            access_token: at,
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+            refresh_token: None,
+            scope: crate::auth::SCOPES.join(" "),
+            expires_at: Some(
+              std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .ok()?
+                .as_secs() as i64
+                + 3600,
+            ),
+          })
+        })
+        .unwrap_or(token_info);
+
+      let (spotify, token_expiry) = get_spotify(api_token_info);
 
       // Initialise app state
       let app = Arc::new(Mutex::new(App::new(

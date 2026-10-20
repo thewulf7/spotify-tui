@@ -19,6 +19,9 @@ pub struct ClientConfig {
   pub device_id: Option<String>,
   // FIXME: port should be defined in `user_config` not in here
   pub port: Option<u16>,
+  /// Override redirect URI. If set, used verbatim (enables stdin PKCE flow
+  /// when no port is present, e.g. "http://127.0.0.1/callback").
+  pub redirect_uri: Option<String>,
 }
 
 pub struct ConfigPaths {
@@ -33,10 +36,14 @@ impl ClientConfig {
       client_secret: "".to_string(),
       device_id: None,
       port: None,
+      redirect_uri: None,
     }
   }
 
   pub fn get_redirect_uri(&self) -> String {
+    if let Some(ref uri) = self.redirect_uri {
+      return uri.clone();
+    }
     format!("http://127.0.0.1:{}/callback", self.get_port())
   }
 
@@ -105,6 +112,7 @@ impl ClientConfig {
         client_secret: "".to_string(),
         device_id: None,
         port: Some(DEFAULT_PORT),
+        redirect_uri: None,
       };
 
       let content_yml = serde_yaml::to_string(&config_yml)?;

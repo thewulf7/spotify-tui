@@ -32,6 +32,7 @@ pub static SCOPES: &[&str] = &[
   "user-library-read",
   "user-modify-playback-state",
   "user-read-currently-playing",
+  "user-read-email",
   "user-read-playback-state",
   "user-read-playback-position",
   "user-read-private",
