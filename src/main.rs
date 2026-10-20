@@ -227,11 +227,9 @@ of the app. Beware that this comes at a CPU cost!",
         match refreshed {
           Some(t) => Some(t),
           None => {
-            let bootstrapped = if !using_own_app {
-              auth::bootstrap_from_spotify_player_cache(&client_id)
-            } else {
-              None
-            };
+            // Try to bootstrap from spotify-player's token cache before browser auth.
+            // Works regardless of which client_id is configured.
+            let bootstrapped = auth::bootstrap_from_spotify_player_cache(&client_id);
             if let Some(ref t) = bootstrapped {
               if let Ok(token_str) = serde_json::to_string(t) {
                 oauth.save_token_info(&token_str);

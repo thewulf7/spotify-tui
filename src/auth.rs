@@ -100,7 +100,11 @@ pub fn refresh_token(
 /// Try to bootstrap a spt token from spotify-player's cached token for the same client_id.
 /// This avoids a browser re-auth when spotify-player has already authenticated the same app.
 pub fn bootstrap_from_spotify_player_cache(client_id: &str) -> Option<TokenInfo> {
-  let cache_path = dirs::cache_dir()?
+  // spotify-player always writes to ~/.cache/spotify-player regardless of platform.
+  // dirs::cache_dir() on macOS returns ~/Library/Caches — wrong here.
+  let home = dirs::home_dir()?;
+  let cache_path = home
+    .join(".cache")
     .join("spotify-player")
     .join(format!("{}_token.json", client_id));
 
