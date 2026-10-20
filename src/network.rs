@@ -1566,31 +1566,50 @@ impl<'a> Network<'a> {
       .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
       .and_then(|v| v["refresh_token"].as_str().map(|s| s.to_string()));
 
-    if let Some(refresh_token) = refresh_token {
-      let using_own_app = !self.client_config.client_id.is_empty();
-      let client_id = if using_own_app {
-        self.client_config.client_id.clone()
-      } else {
-        crate::auth::NCSPOT_CLIENT_ID.to_string()
-      };
+    // Always refresh via the librespot streaming token (Extended Quota).
+    // The PKCE refresh_token is kept as fallback only.
+    let streaming_cache = dirs::home_dir()
+      .map(|h| h.join(".cache").join("spotify-player"))
+      .unwrap_or_default();
 
-      let redirect_uri = if using_own_app {
-        format!("http://127.0.0.1:{}/callback", 8888)
-      } else {
-        crate::auth::NCSPOT_REDIRECT_URI.to_string()
-      };
-      if let Some(new_token_info) =
-        crate::auth::pkce_refresh_token(&client_id, &redirect_uri, &refresh_token)
-      {
-        let (new_spotify, new_token_expiry) = get_spotify(new_token_info.clone());
-        self.spotify = new_spotify;
-        let mut app = self.app.lock().await;
-        app.spotify_token_expiry = new_token_expiry;
-        if let Ok(token_str) = serde_json::to_string(&new_token_info) {
-          self.oauth.save_token_info(&token_str);
-        }
-        return;
+    let new_token_info = crate::streaming::get_web_api_token(&streaming_cache)
+      .and_then(|at| {
+        Some(rspotify::oauth2::TokenInfo {
+          access_token: at,
+          token_type: "Bearer".to_string(),
+          expires_in: 3600,
+          refresh_token: None,
+          scope: crate::auth::SCOPES.join(" "),
+          expires_at: Some(
+            std::time::SystemTime::now()
+              .duration_since(std::time::UNIX_EPOCH)
+              .ok()?
+              .as_secs() as i64
+              + 3600,
+          ),
+        })
+      })
+      .or_else(|| {
+        // Fallback: refresh own-app PKCE token
+        let rt = refresh_token.as_deref()?;
+        let client_id = if !self.client_config.client_id.is_empty() {
+          self.client_config.client_id.clone()
+        } else {
+          crate::auth::NCSPOT_CLIENT_ID.to_string()
+        };
+        let redirect_uri = self.client_config.get_redirect_uri();
+        crate::auth::pkce_refresh_token(&client_id, &redirect_uri, rt)
+      });
+
+    if let Some(new_token_info) = new_token_info {
+      let (new_spotify, new_token_expiry) = get_spotify(new_token_info.clone());
+      self.spotify = new_spotify;
+      let mut app = self.app.lock().await;
+      app.spotify_token_expiry = new_token_expiry;
+      if let Ok(token_str) = serde_json::to_string(&new_token_info) {
+        self.oauth.save_token_info(&token_str);
       }
+      return;
     }
 
     println!("\nFailed to refresh authentication token");
